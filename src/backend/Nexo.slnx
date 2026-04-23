@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Nexo.API/Nexo.API.csproj" Id="d11d0e7e-3a5e-47e1-ad0c-0b42f476447d" />
+  <Project Path="Nexo.Application/Nexo.Application.csproj" />
+  <Project Path="Nexo.Domain/Nexo.Domain.csproj" />
+  <Project Path="Nexo.Infrastructure/Nexo.Infrastructure.csproj" />
+  <Project Path="Nexo.Tests.Integration/Nexo.Tests.Integration.csproj" />
+  <Project Path="Nexo.Tests.Unit/Nexo.Tests.Unit.csproj" />
+</Solution>

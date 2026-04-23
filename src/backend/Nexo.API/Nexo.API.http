@@ -1,0 +1,6 @@
+@Nexo.API_HostAddress = http://localhost:5053
+
+GET {{Nexo.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
