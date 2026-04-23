@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package nexo.ai.v1;
+
+option csharp_namespace = "Nexo.AI.gRPC";
+option go_package = "nexo/ai/v1;ai_v1";
+
+// Servicio principal de IA
+service AIService {
+  // Query sincrónica (gRPC)
+  rpc Query(QueryRequest) returns (QueryResponse);
+  
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+  
+  // Streaming para queries largas (opcional)
+  rpc StreamQuery(QueryRequest) returns (stream QueryChunk);
+}
+
+// Request de query
+message QueryRequest {
+  string question = 1;
+  string user_id = 2;
+  repeated string document_filters = 3;
+  QueryOptions options = 4;
+}
+
+message QueryOptions {
+  int32 max_tokens = 1;
+  float temperature = 2;
+  bool include_sources = 3;
+}
+
+// Response de query
+message QueryResponse {
+  string answer = 1;
+  float confidence = 2;
+  repeated Source sources = 3;
+  int64 processing_time_ms = 4;
+  string model_version = 5;
+}
+
+message Source {
+  string document_id = 1;
+  string chunk_id = 2;
+  float relevance_score = 3;
+  string snippet = 4;
+}
+
+// Health check
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;  // "healthy", "degraded", "unhealthy"
+  string version = 2;
+  int64 uptime_seconds = 3;
+  map<string, string> details = 4;
+}
+
+message QueryChunk {
+  string content = 1;
+  bool is_final = 2;
+}
