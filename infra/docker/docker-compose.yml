@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Source of Truth
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexo-postgres
+    environment:
+      POSTGRES_DB: nexo
+      POSTGRES_USER: nexo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexo123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexo -d nexo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexo-network
+
+  # Redis - Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: nexo-redis
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexo-network
+
+  # Redis Insights (opcional - UI para Redis)
+  redis-insights:
+    image: redis/redisinsight:latest
+    container_name: nexo-redis-insights
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis_insights_data:/db
+    depends_on:
+      - redis
+    networks:
+      - nexo-network
+    profiles:
+      - debug
+
+  # Backend .NET (se construye localmente)
+  backend:
+    build:
+      context: ../../src/backend
+      dockerfile: Dockerfile
+    container_name: nexo-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Postgres=Host=postgres;Database=nexo;Username=nexo;Password=${POSTGRES_PASSWORD:-nexo123}
+      - ConnectionStrings__Redis=redis:6379
+      - AI__ServiceUrl=http://ai-layer:8000
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nexo-network
+    profiles:
+      - with-backend
+
+  # AI Layer (FastAPI)
+  ai-layer:
+    build:
+      context: ../../src/ai-layer
+      dockerfile: Dockerfile
+    container_name: nexo-ai
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - nexo-network
+    profiles:
+      - with-ai
+
+  # PGAdmin (opcional - UI para PostgreSQL)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: nexo-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@nexo.com
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - nexo-network
+    profiles:
+      - debug
+
+volumes:
+  postgres_data:
+  redis_data:
+  redis_insights_data:
+
+networks:
+  nexo-network:
+    driver: bridge
